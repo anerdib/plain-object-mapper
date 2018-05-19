@@ -1,10 +1,15 @@
 package org.anerdib;
 
-import lombok.extern.java.Log;
-import org.anerdib.api.Converter;
-
+import java.util.Collection;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.anerdib.api.Converter;
+import org.anerdib.model.Getter;
+import org.anerdib.model.Setter;
+
+import lombok.extern.java.Log;
 
 /**
  * @param <S>
@@ -14,12 +19,10 @@ import java.util.function.Supplier;
 @Log
 public class ConverterImpl<S, D, I> implements Converter<S, D> {
 
-
 	private final Supplier<I> supplier;
 	private final Function<I, D> finalizer;
 
-	private Class<S> sourceClass;
-	private Class<I> intermediaryClass;
+	private Collection<Entry<Getter<S, Object>, Setter<I, Object>>> setters;
 
 	public ConverterImpl(Supplier<I> supplier, Function<I, D> finalizer) {
 		this.supplier = supplier;
@@ -31,33 +34,21 @@ public class ConverterImpl<S, D, I> implements Converter<S, D> {
 	private void initMapping() {
 	}
 
-
-
-
-
-	/*public Converter(Supplier<S> first, Supplier<D> second) {
-		this.firstConstructor = first;
-		this.secondConstructor = second;
-
-		firstClass = first.getClass().getMethods()[0].getGenericReturnType();
-		secondClass = second.getClass().getMethods()[0].getGenericReturnType();
-	}*/
-/*
-	private ConverterImpl(Converter<D, S, S> dtConverter) {
-		this.reverseConverter = dtConverter;
-		this.firstClass = new GenericTypeReference<S>() {
-		}.getGenericClass();
-		this.secondClass = new GenericTypeReference<D>() {
-		}.getGenericClass();
+	protected I applyMappings(S source, I instance) {
+		setters.stream().forEach(e -> {
+			Object value = e.getKey().apply(source);
+			e.getValue().apply(instance, value);
+		});
+		return instance;
 	}
-*/
 
-	protected I applyMappings(I instance) {
-			return instance;
-	}
 	public D convert(S source) {
 		I instance = supplier.get();
-		instance = applyMappings(instance);
+		instance = applyMappings(source, instance);
 		return finalizer.apply(instance);
+	}
+
+	public void setSetters(Collection<Entry<Getter<S, Object>, Setter<I, Object>>> values) {
+		this.setters = values;
 	}
 }
