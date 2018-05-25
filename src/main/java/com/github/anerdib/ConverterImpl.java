@@ -1,25 +1,18 @@
-package org.anerdib;
+package com.github.anerdib;
+
+import com.github.anerdib.api.Converter;
+import com.github.anerdib.model.Getter;
+import com.github.anerdib.model.Setter;
+import lombok.extern.java.Log;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
-import org.anerdib.api.Converter;
-import org.anerdib.model.GenericTypeReference;
-import org.anerdib.model.Getter;
-import org.anerdib.model.Setter;
-
-import lombok.extern.java.Log;
-
-/**
- * @param <S>
- * @param <D>
- * @author anerdib
- */
 @Log
 public class ConverterImpl<S, D, I> implements Converter<S, D> {
 
@@ -29,15 +22,15 @@ public class ConverterImpl<S, D, I> implements Converter<S, D> {
 	private final Class<D> destinationClass;
 	private final Class<I> intermediaryClass;
 
-	private Collection<Entry<Getter<S, Object>, Setter<I, Object>>> setters;
+	private Collection<Map.Entry<Getter<S, Object>, Setter<I, Object>>> setters;
 
 	@SuppressWarnings("unchecked")
-	public ConverterImpl(Supplier<I> supplier, Function<I, D> finalizer) {
+	public ConverterImpl(Class<S> sourceClass, Class<D> destinationClass, Class<I> intermediaryClass, Supplier<I> supplier, Function<I, D> finalizer) {
 		this.supplier = supplier;
 		this.finalizer = finalizer;
-		sourceClass = (Class<S>) GenericTypeReference.getGenericTypes(supplier)[0];
-		intermediaryClass = (Class<I>) GenericTypeReference.getGenericTypes(finalizer)[0];
-		destinationClass = (Class<D>) GenericTypeReference.getGenericTypes(finalizer)[1];
+		this.sourceClass = sourceClass;
+		this.destinationClass = destinationClass;
+		this.intermediaryClass = intermediaryClass;
 	}
 
 	protected I applyMappings(S source, I instance) {
@@ -85,8 +78,9 @@ public class ConverterImpl<S, D, I> implements Converter<S, D> {
 		return newArray;
 	}
 
-	public void setSetters(Collection<Entry<Getter<S, Object>, Setter<I, Object>>> values) {
+	public void setSetters(Collection<Map.Entry<Getter<S, Object>, Setter<I, Object>>> values) {
 		this.setters = values;
 	}
 
 }
+

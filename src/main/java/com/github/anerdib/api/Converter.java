@@ -1,13 +1,18 @@
-package org.anerdib.api;
+package com.github.anerdib.api;
 
 import java.util.Collection;
 
+/**
+ * @param <S> The source generic template.
+ * @param <D> The target generic template.
+ * @author anerdib
+ */
 public interface Converter<S, D> {
 
 	/**
 	 * Convert the given source parameter to a destination type given by the generic
 	 * type <code>D</code>
-	 * 
+	 *
 	 * @param source
 	 * @return
 	 */
@@ -16,7 +21,7 @@ public interface Converter<S, D> {
 	/**
 	 * Convert the given source Collection of generic type <code>S</code> to a
 	 * Collection of generic type <code>D</code>
-	 * 
+	 *
 	 * @param source
 	 * @return
 	 */
@@ -25,7 +30,7 @@ public interface Converter<S, D> {
 	/**
 	 * Convert a given array of the generic type <code>S</code> to an array of
 	 * generic type <code>D</code>
-	 * 
+	 *
 	 * @return
 	 */
 	D[] convert(S[] source);

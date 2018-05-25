@@ -1,4 +1,4 @@
-package org.anerdib.model;
+package com.github.anerdib.model;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

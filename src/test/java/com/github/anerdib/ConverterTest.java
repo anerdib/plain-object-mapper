@@ -1,11 +1,12 @@
-package org.anerdib;
+package com.github.anerdib;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.anerdib.api.Converter;
-import org.anerdib.model.SimpleSourcePojo;
-import org.anerdib.model.SimpleTargetPojo;
+import com.github.anerdib.api.Converter;
+import com.github.anerdib.model.SimpleTargetBuilder;
+import com.github.anerdib.model.SimpleSourcePojo;
+import com.github.anerdib.model.SimpleTargetPojo;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ public class ConverterTest {
 		simpleTargetPojo2.setReferenceField(simpleSourcePojo2.getReferenceField());
 
 		this.basicConverter = new ConverterBuilder<>(SimpleSourcePojo.class, SimpleTargetPojo.class)
-				.withDefaultConstructors().build();
+				                      .withDefaultConstructor().build();
 	}
 
 	@Test
@@ -51,16 +52,16 @@ public class ConverterTest {
 	@Test
 	public void test_pojo_with_methods() {
 		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilder<>(SimpleSourcePojo.class,
-				SimpleTargetPojo.class).withDefaultConstructors().from(SimpleSourcePojo::getStringField)
-						.to(SimpleTargetPojo::setStringField).build();
+				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
+				                                                          .to(SimpleTargetPojo::setStringField).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
 	}
 
 	@Test
 	public void test_omit() {
 		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilder<>(SimpleSourcePojo.class,
-				SimpleTargetPojo.class).withDefaultConstructors().from(SimpleSourcePojo::getStringField)
-						.to(SimpleTargetPojo::setStringField).omit(SimpleSourcePojo::getReferenceField).build();
+				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
+				                                                          .to(SimpleTargetPojo::setStringField).omit(SimpleSourcePojo::getReferenceField).build();
 		SimpleTargetPojo converted = converter.convert(simpleSourcePojo1);
 		Assertions.assertEquals(converted.getStringField(), simpleTargetPojo1.getStringField());
 		Assertions.assertNull(converted.getReferenceField());
@@ -69,8 +70,8 @@ public class ConverterTest {
 	@Test
 	public void test_pojo_with_methods_modifying() {
 		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilder<>(SimpleSourcePojo.class,
-				SimpleTargetPojo.class).withDefaultConstructors().from(SimpleSourcePojo::getStringField)
-						.to((i, v) -> i.setStringField("ok")).build();
+				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
+				                                                          .to((i, v) -> i.setStringField("ok")).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1).getStringField(), "ok");
 	}
 
@@ -91,8 +92,8 @@ public class ConverterTest {
 
 	@Test
 	public void test_array() {
-		SimpleSourcePojo[] provided = new SimpleSourcePojo[] { simpleSourcePojo1, simpleSourcePojo2 };
-		SimpleTargetPojo[] expected = new SimpleTargetPojo[] { simpleTargetPojo1, simpleTargetPojo2 };
+		SimpleSourcePojo[] provided = new SimpleSourcePojo[]{simpleSourcePojo1, simpleSourcePojo2};
+		SimpleTargetPojo[] expected = new SimpleTargetPojo[]{simpleTargetPojo1, simpleTargetPojo2};
 
 		SimpleTargetPojo[] converted = basicConverter.convert(provided);
 		Assertions.assertArrayEquals(expected, converted);
@@ -105,4 +106,12 @@ public class ConverterTest {
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
 	}
 
+
+	@Test
+	public void test_pojo_Builder() {
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilder<>(SimpleSourcePojo.class,
+				SimpleTargetPojo.class).withBuilder(SimpleTargetBuilder::new).from(SimpleSourcePojo::getReferenceField)
+				                                                          .to(SimpleTargetBuilder::setReference).build();
+		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
+	}
 }
