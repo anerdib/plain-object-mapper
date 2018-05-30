@@ -1,132 +1,137 @@
 package com.github.anerdib;
 
-import com.github.anerdib.model.GenericTypeReference;
-import com.github.anerdib.model.SerializableSupplier;
-import lombok.extern.java.Log;
-import lombok.extern.slf4j.Slf4j;
 
-import java.lang.reflect.Constructor;
+import com.github.anerdib.api.Converter;
+import com.github.anerdib.model.GenericTypeReference;
+import com.github.anerdib.model.Getter;
+import com.github.anerdib.model.Setter;
+import lombok.extern.java.Log;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
-/**
- * @param <S>
- * @param <D>
- * @author anerdib
- */
-@Slf4j
-public class ConverterBuilder<S, D> {
+@Log
+public class ConverterBuilder<S, D, I> {
+	private final Supplier<I> supplier;
+	private final Function<I, D> finalizer;
 	private final Class<S> sourceClass;
 	private final Class<D> destinationClass;
+	private final Class<I> intermediaryClass;
+	private Map<String, Map.Entry<Getter<S, Object>, Setter<I, Object>>> setters = new HashMap<>();
 
-	/**
-	 * @param first  source class in the conversion
-	 * @param second destination class in the conversion
-	 */
-	public ConverterBuilder(Class<S> first, Class<D> second) {
-		this.sourceClass = first;
-		this.destinationClass = second;
-	}
-
-	private <T> Supplier<T> extractConstructor(Class<T> first) {
-		try {
-			Constructor<T> constructor = first.getConstructor();
-			return () -> {
-				try {
-					return constructor.newInstance();
-				} catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-					log.log(Level.SEVERE, "Could not obtain an instance for {}", first);
-					return null;
-				}
-			};
-		} catch (NoSuchMethodException e) {
-			log.error("Could not obtain a constructor for {}");
-		}
-		return null;
-	}
-
-	/**
-	 * Create a Converter using the builder pattern.
-	 *
-	 * @param builderConstructor the method reference to the builder's constructor
-	 * @param finalizer          lambda that will build the final object. Usually it will be just a call or a reference t
-	 * @param <B>                generic type for the Builder class used
-	 * @return
-	 */
-	public <B> ConverterBuilderStep2<S, D, B> withBuilder(SerializableSupplier<B> builderConstructor, Function<B, D> finalizer) {
-		Class<?> builderClass = GenericTypeReference.getLambdaReturnType(builderConstructor);
-
-		return new ConverterBuilderStep2<S, D, B>(sourceClass, destinationClass, (Class<B>) builderClass, builderConstructor, finalizer);
+	public ConverterBuilder(Class<S> sourceClass, Class<D> destinationClass, Class<I> intermediaryClass, Supplier<I> factoryMethod, Function<I, D> finalizer) {
+		this.supplier = factoryMethod;
+		this.finalizer = finalizer;
+		this.sourceClass = sourceClass;
+		this.destinationClass = destinationClass;
+		this.intermediaryClass = intermediaryClass;
 	}
 
 
 	/**
-	 * Create a Converter using the builder pattern. This method will try to find a <code>build</code>
-	 * inside the generic type <code>B</code> and will use that to deliver the final object.
-	 *
-	 * @param builderConstructor the method reference to the builder's constructor
-	 * @param <B>                generic type for the Builder class used
-	 * @return
+	 * @param from
 	 */
-	public <B> ConverterBuilderStep2<S, D, B> withBuilder(SerializableSupplier<B> builderConstructor) {
+	private void addFromPair(Map.Entry<Getter<S, Object>, Setter<I, Object>> from) {
+		Getter<S, Object> getter = from.getKey();
+		String getterName = GenericTypeReference.getLambdaMethodName(getter);
+		setters.put(getterName, from);
+	}
 
-		Class<B> builderClass = (Class<B>) GenericTypeReference.getLambdaReturnType(builderConstructor);
-		Method buildMethod = null;
-		try {
-			buildMethod = builderClass.getMethod("build");
-
-		} catch (NoSuchMethodException e) {
-			//Maybe there is a method that gives as a D object
-			for (Method m : builderClass.getMethods()) {
-				if (m.getReturnType().isAssignableFrom(destinationClass))
-					buildMethod = m;
-			}
-			if (buildMethod == null)
-				throw new IllegalArgumentException("No build method was found for builder class " + builderClass.getCanonicalName());
-		}
-
-		Method finalBuildMethod = buildMethod;
-		Function<B, D> finalizer = i -> {
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	/**
+	 * Build the configured {@link Converter}
+	 */
+	public final Converter<S, D> build() {
+		ConverterImpl<S, D, I> converterInstance = new ConverterImpl<S, D, I>(sourceClass, destinationClass, intermediaryClass, supplier, finalizer);
+		for (Method method : sourceClass.getMethods()) {
+			String getterName = method.getName();
+			if (!getterName.startsWith("get"))
+				continue;
 			try {
-				return (D) finalBuildMethod.invoke(i);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				log.severe("Exception when calling build method");
-				throw new IllegalStateException("Build call failed");
+				String setterName = "set" + method.getName().substring(3);
+				Method setter = intermediaryClass.getMethod(setterName, new Class<?>[]{method.getReturnType()});
+				if (setter != null) {
+					Getter<S, Object> getterLambda = (i) -> {
+						try {
+							return method.invoke(i, new Object[0]);
+						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+							log.log(Level.SEVERE, "getter invocation failed for {} in class {}",
+									new Object[]{getterName, sourceClass.getName()});
+						}
+						return method;
+					};
+					Setter setterLambda = (i, p) -> {
+						try {
+							setter.invoke(i, p);
+						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+							log.log(Level.SEVERE, "setter invocation failed for {} in class {}",
+									new Object[]{setterName, intermediaryClass.getName()});
+						}
+					};
+					setters.putIfAbsent(getterName,
+							new AbstractMap.SimpleImmutableEntry<Getter<S, Object>, Setter<I, Object>>(getterLambda,
+									setterLambda));
+				}
+			} catch (NoSuchMethodException nsmex) {
+
 			}
-		};
-		return withBuilder(builderConstructor, finalizer);
+		}
+		converterInstance.setSetters(setters.values());
+		return converterInstance;
 	}
 
 	/**
-	 * Create a Converter using the builder pattern.
-	 *
-	 * @param builder the builder instance
-	 * @param <B>     generic type for the Builder class used
+	 * @param getter
+	 * @param <ST>
 	 * @return
 	 */
-	public <B> ConverterBuilderStep2<S, D, B> withBuilder(B builder) {
-		return withBuilder(() -> builder);
+	public <ST> From from(Getter<S, Object> getter) {
+
+		return new From(getter);
 	}
 
 	/**
-	 * Create a converter using the default constructor for the target type.
+	 * Ignore the given property
 	 *
+	 * @param getter
 	 * @return
 	 */
-	public ConverterBuilderStep2<S, D, D> withDefaultConstructor() {
-		return new ConverterBuilderStep2<>(sourceClass, destinationClass, destinationClass, extractConstructor(destinationClass), Function.identity());
+	public ConverterBuilder<S, D, I> omit(Getter<S, Object> getter) {
+		addFromPair(
+				new AbstractMap.SimpleImmutableEntry<Getter<S, Object>, Setter<I, Object>>(getter, Setter.omit()));
+		return this;
 	}
 
-	/**
-	 * Create a converter using the given lambda as a factory method. if D::new is given as a parameter basically it's equivalent to withDefaultConstructor.
-	 *
-	 * @param factoryMethod
-	 * @return
-	 */
-	public ConverterBuilderStep2<S, D, D> withFactory(Supplier<D> factoryMethod) {
-		return new ConverterBuilderStep2<>(sourceClass, destinationClass, destinationClass, factoryMethod, Function.identity());
+	public class From {
+		private Getter<S, Object> getter;
+		private Setter<I, Object> setter;
+
+		private From(Getter<S, Object> getter) {
+			this.getter = getter;
+		}
+
+		public Getter<S, Object> getGetter() {
+			return getter;
+		}
+
+		public Setter<I, ? extends Object> getSetter() {
+			return setter;
+		}
+
+		@SuppressWarnings("unchecked")
+		public <T extends Object> ConverterBuilder<S, D, I> to(Setter<I, T> setter) {
+			this.setter = (Setter<I, Object>) setter;
+			ConverterBuilder.this.addFromPair(
+					new AbstractMap.SimpleImmutableEntry<Getter<S, Object>, Setter<I, Object>>(this.getter,
+							this.setter));
+			return ConverterBuilder.this;
+		}
 	}
 }
+
