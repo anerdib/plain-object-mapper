@@ -24,9 +24,15 @@ public class ConverterBuilderFactory<S, D> {
 	 * @param first  source class in the conversion
 	 * @param second destination class in the conversion
 	 */
-	public ConverterBuilderFactory(Class<S> first, Class<D> second) {
+	private ConverterBuilderFactory(Class<S> first, Class<D> second) {
 		this.sourceClass = first;
 		this.destinationClass = second;
+	}
+
+
+	public static <First, Second> ConverterBuilderFactory<First,Second> of(Class<First> first, Class<Second> second) {
+		ConverterBuilderFactory<First, Second> instance = new ConverterBuilderFactory<>(first, second);
+		return instance;
 	}
 
 	private <T> Supplier<T> extractConstructor(Class<T> first) {

@@ -40,7 +40,7 @@ public class ConverterTest {
 		simpleTargetPojo2.setStringField(simpleSourcePojo2.getStringField());
 		simpleTargetPojo2.setReferenceField(simpleSourcePojo2.getReferenceField());
 
-		this.basicConverter = new ConverterBuilderFactory<>(SimpleSourcePojo.class, SimpleTargetPojo.class)
+		this.basicConverter =  ConverterBuilderFactory.of(SimpleSourcePojo.class, SimpleTargetPojo.class)
 				                      .withDefaultConstructor().build();
 	}
 
@@ -51,7 +51,7 @@ public class ConverterTest {
 
 	@Test
 	public void test_pojo_with_methods() {
-		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilderFactory<>(SimpleSourcePojo.class,
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter =  ConverterBuilderFactory.of(SimpleSourcePojo.class,
 				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
 				                                                          .to(SimpleTargetPojo::setStringField).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
@@ -59,7 +59,7 @@ public class ConverterTest {
 
 	@Test
 	public void test_omit() {
-		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilderFactory<>(SimpleSourcePojo.class,
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = ConverterBuilderFactory.of(SimpleSourcePojo.class,
 				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
 				                                                          .to(SimpleTargetPojo::setStringField).omit(SimpleSourcePojo::getReferenceField).build();
 		SimpleTargetPojo converted = converter.convert(simpleSourcePojo1);
@@ -69,7 +69,7 @@ public class ConverterTest {
 
 	@Test
 	public void test_pojo_with_methods_modifying() {
-		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilderFactory<>(SimpleSourcePojo.class,
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter =  ConverterBuilderFactory.of(SimpleSourcePojo.class,
 				SimpleTargetPojo.class).withDefaultConstructor().from(SimpleSourcePojo::getStringField)
 				                                                          .to((i, v) -> i.setStringField("ok")).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1).getStringField(), "ok");
@@ -101,7 +101,7 @@ public class ConverterTest {
 
 	@Test
 	public void test_pojo_factory_method() {
-		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilderFactory<>(SimpleSourcePojo.class,
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter =  ConverterBuilderFactory.of(SimpleSourcePojo.class,
 				SimpleTargetPojo.class).withFactory(SimpleTargetPojo::new).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
 	}
@@ -109,7 +109,7 @@ public class ConverterTest {
 
 	@Test
 	public void test_pojo_Builder() {
-		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = new ConverterBuilderFactory<>(SimpleSourcePojo.class,
+		Converter<SimpleSourcePojo, SimpleTargetPojo> converter = ConverterBuilderFactory.of(SimpleSourcePojo.class,
 				SimpleTargetPojo.class).withBuilder(SimpleTargetBuilder::new).from(SimpleSourcePojo::getReferenceField)
 				                                                          .to(SimpleTargetBuilder::setReference).build();
 		Assertions.assertEquals(converter.convert(simpleSourcePojo1), simpleTargetPojo1);
